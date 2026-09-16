@@ -1,0 +1,40 @@
+<svg width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dieGrad" gradientUnits="userSpaceOnUse" x1="120" y1="500" x2="880" y2="500">
+      <stop offset="0%" stop-color="#1414a8"/>
+      <stop offset="38%" stop-color="#241468"/>
+      <stop offset="50%" stop-color="#160f1a"/>
+      <stop offset="62%" stop-color="#5c1420"/>
+      <stop offset="100%" stop-color="#b81414"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1000" height="1000" fill="#ffffff"/>
+
+  <!-- scaled + centered so the artwork sits inside the maskable "safe zone" (Android may crop to a circle/squircle) -->
+  <g transform="translate(150 150) scale(0.7)">
+    <polygon points="500,55 832,268 832,692 500,905 168,692 168,268"
+      fill="none" stroke="url(#dieGrad)" stroke-width="26" stroke-linejoin="round"/>
+
+    <g stroke="url(#dieGrad)" stroke-width="20" stroke-linecap="round">
+      <line x1="500" y1="55" x2="500" y2="470"/>
+      <line x1="168" y1="268" x2="500" y2="470"/>
+      <line x1="832" y1="268" x2="500" y2="470"/>
+      <line x1="168" y1="692" x2="500" y2="470"/>
+      <line x1="832" y1="692" x2="500" y2="470"/>
+      <line x1="500" y1="905" x2="500" y2="470"/>
+    </g>
+
+    <text x="280" y="330" font-family="Georgia, 'Times New Roman', serif" font-size="140" font-weight="700"
+      fill="#0d0d0d" text-anchor="middle" dominant-baseline="middle" transform="rotate(-18 280 330)">2</text>
+
+    <text x="695" y="345" font-family="Georgia, 'Times New Roman', serif" font-size="120" font-weight="700"
+      fill="#0d0d0d" text-anchor="middle" dominant-baseline="middle" transform="rotate(58 695 345)">14</text>
+
+    <text x="500" y="500" font-family="Georgia, 'Times New Roman', serif" font-size="210" font-weight="700"
+      fill="#0d0d0d" text-anchor="middle" dominant-baseline="middle">20</text>
+
+    <text x="500" y="705" font-family="Georgia, 'Times New Roman', serif" font-size="130" font-weight="700"
+      fill="#0d0d0d" text-anchor="middle" dominant-baseline="middle">8</text>
+  </g>
+</svg>

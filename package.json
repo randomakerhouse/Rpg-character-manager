@@ -1,0 +1,24 @@
+{
+  "name": "rpg-character-manager",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @rpg/app",
+    "build": "npm run build -w @rpg/engine && npm run build -w @rpg/persistence && npm run build -w @rpg/app",
+    "test": "npm run test -w @rpg/engine && npm run test -w @rpg/persistence",
+    "test:watch": "npm run test:watch -w @rpg/engine",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck -w @rpg/engine && npm run typecheck -w @rpg/persistence && npm run typecheck -w @rpg/app"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "eslint": "^9.13.0",
+    "@typescript-eslint/eslint-plugin": "^8.12.2",
+    "@typescript-eslint/parser": "^8.12.2"
+  }
+}
