@@ -39,6 +39,8 @@ function friendlyMessage(code: string): string {
       return "Your browser blocked the sign-in popup — allow popups for this site and try again.";
     case "auth/account-exists-with-different-credential":
       return "There's already an account with that email using a different sign-in method.";
+    case "auth/unauthorized-domain":
+      return "This site isn't authorized for Google sign-in yet — add its domain in Firebase Console under Authentication > Settings > Authorized domains.";
     default:
       return "Something went wrong signing you in. Please try again.";
   }
