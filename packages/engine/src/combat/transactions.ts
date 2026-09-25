@@ -19,8 +19,10 @@ export function buildTransaction(input: {
     timestamp: new Date().toISOString(),
     type: input.type,
     summary: input.summary,
-    trace: input.trace,
-    manualOverride: input.manualOverride,
+    // Only include these keys when actually provided — an explicit `undefined` value (as
+    // opposed to an omitted key) is rejected by Firestore's setDoc() during cloud sync.
+    ...(input.trace !== undefined ? { trace: input.trace } : {}),
+    ...(input.manualOverride !== undefined ? { manualOverride: input.manualOverride } : {}),
     patch: input.patch,
     undone: false,
   };

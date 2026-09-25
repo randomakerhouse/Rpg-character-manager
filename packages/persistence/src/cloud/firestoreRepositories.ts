@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import type { Character, CharacterRepository, Ruleset, RulesetRepository, Transaction, TransactionRepository } from "@rpg/engine";
 import { getFirebaseDb } from "./firebaseClient.js";
+import { stripUndefinedDeep } from "./firestoreSanitize.js";
 
 export class FirestoreCharacterRepository implements CharacterRepository {
   private readonly uid: string;
@@ -31,7 +32,7 @@ export class FirestoreCharacterRepository implements CharacterRepository {
   }
 
   async save(character: Character): Promise<void> {
-    await setDoc(doc(this.collection(), character.id), character);
+    await setDoc(doc(this.collection(), character.id), stripUndefinedDeep(character));
   }
 
   async delete(id: string): Promise<void> {
@@ -61,7 +62,7 @@ export class FirestoreRulesetRepository implements RulesetRepository {
   }
 
   async save(ruleset: Ruleset): Promise<void> {
-    await setDoc(doc(this.collection(), ruleset.id), ruleset);
+    await setDoc(doc(this.collection(), ruleset.id), stripUndefinedDeep(ruleset));
   }
 
   async delete(id: string): Promise<void> {
@@ -89,11 +90,11 @@ export class FirestoreTransactionRepository implements TransactionRepository {
   }
 
   async append(transaction: Transaction): Promise<void> {
-    await setDoc(doc(this.collection(), transaction.id), transaction);
+    await setDoc(doc(this.collection(), transaction.id), stripUndefinedDeep(transaction));
   }
 
   async update(transaction: Transaction): Promise<void> {
-    await setDoc(doc(this.collection(), transaction.id), transaction);
+    await setDoc(doc(this.collection(), transaction.id), stripUndefinedDeep(transaction));
   }
 
   async listAll(): Promise<Transaction[]> {

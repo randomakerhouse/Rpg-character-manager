@@ -83,4 +83,23 @@ describe("reconcile (last-write-wins merge, section: cloud sync)", () => {
     expect(pushed.sort()).toEqual(["local-only", "newer-local"]);
     expect(pulled).toEqual(["remote-only"]);
   });
+
+  it("keeps syncing the rest of the batch when one record's push fails", async () => {
+    const pushed: string[] = [];
+    const result = await reconcile<Item>(
+      [
+        { id: "bad", value: "throws", updatedAt: "2024-01-01T00:00:00Z" },
+        { id: "good", value: "fine", updatedAt: "2024-01-01T00:00:00Z" },
+      ],
+      [],
+      async (item) => {
+        if (item.id === "bad") throw new Error("Unsupported field value: undefined");
+        pushed.push(item.id);
+      },
+      async () => {},
+    );
+    expect(pushed).toEqual(["good"]);
+    expect(result.pushed).toBe(1);
+    expect(result.errors).toEqual([{ id: "bad", error: expect.any(Error) }]);
+  });
 });

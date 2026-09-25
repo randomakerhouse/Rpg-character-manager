@@ -190,8 +190,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!uid) return;
     set({ syncStatus: "syncing", syncError: null });
     try {
-      await syncAll(uid, { characters: characterRepository, rulesets: rulesetRepository, transactions: transactionRepository });
-      set({ ...(await reloadFromLocal()), syncStatus: "synced", lastSyncedAt: new Date().toISOString() });
+      const result = await syncAll(uid, {
+        characters: characterRepository,
+        rulesets: rulesetRepository,
+        transactions: transactionRepository,
+      });
+      const reloaded = await reloadFromLocal();
+      if (result.errors.length > 0) {
+        // Everything that succeeded is already merged in; only the specific failed records are
+        // flagged, so this isn't a hard failure — surfaced as a warning, not blocking further use.
+        set({
+          ...reloaded,
+          syncStatus: "error",
+          syncError: `${result.errors.length} item(s) couldn't sync — everything else is up to date.`,
+          lastSyncedAt: new Date().toISOString(),
+        });
+      } else {
+        set({ ...reloaded, syncStatus: "synced", lastSyncedAt: new Date().toISOString() });
+      }
     } catch (err) {
       set({ syncStatus: "error", syncError: err instanceof Error ? err.message : "Sync failed." });
     }

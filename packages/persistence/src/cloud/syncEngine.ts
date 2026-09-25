@@ -10,6 +10,8 @@ export interface SyncResult {
   rulesetsPushed: number;
   rulesetsPulled: number;
   transactionsSynced: number;
+  /** Records that failed to sync (e.g. a transient error) — everything else still synced normally. */
+  errors: { kind: "character" | "ruleset" | "transaction"; id: string; error: unknown }[];
 }
 
 export interface Stamped {
@@ -22,42 +24,52 @@ export function isNewer(a: Stamped, b: Stamped): boolean {
   return (a.updatedAt ?? "") > (b.updatedAt ?? "");
 }
 
-/** Pushes/pulls a single record set so both sides end up holding whichever copy is newer. Exported for unit testing. */
+/**
+ * Pushes/pulls a single record set so both sides end up holding whichever copy is newer.
+ * Exported for unit testing. A failure on one record (network hiccup, one bad document) is
+ * caught and reported rather than aborting the rest of the batch — one broken record should
+ * never block every other character/transaction from syncing.
+ */
 export async function reconcile<T extends Stamped>(
   localList: T[],
   remoteList: T[],
   pushOne: (item: T) => Promise<void>,
   pullOne: (item: T) => Promise<void>,
-): Promise<{ pushed: number; pulled: number }> {
+): Promise<{ pushed: number; pulled: number; errors: { id: string; error: unknown }[] }> {
   const localById = new Map(localList.map((item) => [item.id, item]));
   const remoteById = new Map(remoteList.map((item) => [item.id, item]));
   const allIds = new Set([...localById.keys(), ...remoteById.keys()]);
 
   let pushed = 0;
   let pulled = 0;
+  const errors: { id: string; error: unknown }[] = [];
 
   for (const id of allIds) {
     const local = localById.get(id);
     const remote = remoteById.get(id);
 
-    if (local && !remote) {
-      await pushOne(local);
-      pushed++;
-    } else if (remote && !local) {
-      await pullOne(remote);
-      pulled++;
-    } else if (local && remote && local.updatedAt !== remote.updatedAt) {
-      if (isNewer(local, remote)) {
+    try {
+      if (local && !remote) {
         await pushOne(local);
         pushed++;
-      } else {
+      } else if (remote && !local) {
         await pullOne(remote);
         pulled++;
+      } else if (local && remote && local.updatedAt !== remote.updatedAt) {
+        if (isNewer(local, remote)) {
+          await pushOne(local);
+          pushed++;
+        } else {
+          await pullOne(remote);
+          pulled++;
+        }
       }
+    } catch (error) {
+      errors.push({ id, error });
     }
   }
 
-  return { pushed, pulled };
+  return { pushed, pulled, errors };
 }
 
 /**
@@ -74,23 +86,35 @@ export async function syncAll(
   const remoteRulesets = new FirestoreRulesetRepository(uid);
   const remoteTransactions = new FirestoreTransactionRepository(uid);
 
+  const errors: SyncResult["errors"] = [];
+
   const [localChars, remoteChars] = await Promise.all([local.characters.list(), remoteCharacters.list()]);
-  const { pushed: charactersPushed, pulled: charactersPulled } = await reconcile<Character>(
+  const {
+    pushed: charactersPushed,
+    pulled: charactersPulled,
+    errors: characterErrors,
+  } = await reconcile<Character>(
     localChars,
     remoteChars,
     (c) => remoteCharacters.save(c),
     (c) => local.characters.importRaw(c),
   );
+  errors.push(...characterErrors.map((e) => ({ kind: "character" as const, id: e.id, error: e.error })));
 
   const [localRulesetsAll, remoteRulesets_] = await Promise.all([local.rulesets.list(), remoteRulesets.list()]);
   // Only custom rulesets are synced — built-in presets (like the D&D 5e ruleset) ship in the app code itself.
   const localRulesets = localRulesetsAll.filter((r) => r.id.startsWith("custom-"));
-  const { pushed: rulesetsPushed, pulled: rulesetsPulled } = await reconcile<Ruleset>(
+  const {
+    pushed: rulesetsPushed,
+    pulled: rulesetsPulled,
+    errors: rulesetErrors,
+  } = await reconcile<Ruleset>(
     localRulesets,
     remoteRulesets_,
     (r) => remoteRulesets.save(r),
     (r) => local.rulesets.importRaw(r),
   );
+  errors.push(...rulesetErrors.map((e) => ({ kind: "ruleset" as const, id: e.id, error: e.error })));
 
   const [localTx, remoteTx] = await Promise.all([local.transactions.listAll(), remoteTransactions.listAll()]);
   const localTxById = new Map(localTx.map((t) => [t.id, t]));
@@ -101,22 +125,26 @@ export async function syncAll(
   for (const id of allTxIds) {
     const l = localTxById.get(id);
     const r = remoteTxById.get(id);
-    if (l && r) {
-      if (l.undone !== r.undone) {
-        const merged: Transaction = { ...l, undone: l.undone || r.undone };
-        await Promise.all([local.transactions.update(merged), remoteTransactions.update(merged)]);
+    try {
+      if (l && r) {
+        if (l.undone !== r.undone) {
+          const merged: Transaction = { ...l, undone: l.undone || r.undone };
+          await Promise.all([local.transactions.update(merged), remoteTransactions.update(merged)]);
+          transactionsSynced++;
+        }
+      } else if (l && !r) {
+        await remoteTransactions.append(l);
+        transactionsSynced++;
+      } else if (r && !l) {
+        await local.transactions.append(r);
         transactionsSynced++;
       }
-    } else if (l && !r) {
-      await remoteTransactions.append(l);
-      transactionsSynced++;
-    } else if (r && !l) {
-      await local.transactions.append(r);
-      transactionsSynced++;
+    } catch (error) {
+      errors.push({ kind: "transaction", id, error });
     }
   }
 
-  return { charactersPushed, charactersPulled, rulesetsPushed, rulesetsPulled, transactionsSynced };
+  return { charactersPushed, charactersPulled, rulesetsPushed, rulesetsPulled, transactionsSynced, errors };
 }
 
 /** Deletes a character both locally and in the cloud, so it doesn't get resurrected by a later sync. */
